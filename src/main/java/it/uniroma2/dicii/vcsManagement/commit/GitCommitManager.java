@@ -3,7 +3,6 @@ package it.uniroma2.dicii.vcsManagement.commit;
 import com.google.common.annotations.VisibleForTesting;
 import it.uniroma2.dicii.issueManagement.exceptions.NoTicketsFoundException;
 import it.uniroma2.dicii.issueManagement.model.Ticket;
-import it.uniroma2.dicii.issueManagement.model.Version;
 import it.uniroma2.dicii.issueManagement.ticket.TicketsManager;
 import it.uniroma2.dicii.issueManagement.version.VersionsManager;
 import it.uniroma2.dicii.properties.PropertiesManager;
@@ -13,13 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LogCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevObject;
-import org.eclipse.jgit.revwalk.RevTag;
-import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 
 import java.io.File;
@@ -44,16 +38,14 @@ public class GitCommitManager {
     private final Pattern ticketPatternWithIssue;
     private final Pattern ticketPatternWithHashtag;
     private final TicketsManager ticketsManager;
-    private final VersionsManager versionsManager;
 
     /**
      * Creates a new Git Commit Manager for the specified repository path and project name
      *
      * @throws IOException if the repository can't be accessed
      */
-    public GitCommitManager(VersionsManager versionsManager, TicketsManager ticketsManager) throws IOException {
+    public GitCommitManager(TicketsManager ticketsManager) throws IOException {
         this.ticketsManager = ticketsManager;
-        this.versionsManager = versionsManager;
         this.projectName = PropertiesManager.getInstance().getProperty("project.name").toUpperCase(Locale.ROOT);
 
         // Initialize the repository
@@ -71,7 +63,7 @@ public class GitCommitManager {
     /**
      * Retrieves all commits from the repository and associates them with ticket IDs
      */
-    public void getCommitsWithTickets() throws CommitException {
+    public void linkCommitsToTickets() throws CommitException {
         try {
             // Retrieves all the tickets from the tickets manager
             List<Ticket> tickets = ticketsManager.getTickets();
@@ -99,10 +91,10 @@ public class GitCommitManager {
                     int i = 0;
                     while (i < tickets.size() && !ticketId.equalsIgnoreCase(tickets.get(i).getKey())) i++;
                     if (i < tickets.size()) {
-                        log.info("Ticket {} found matching any of the following patterns: {}.", ticketId, ticketIds);
+                        log.debug("Ticket {} found matching any of the following patterns: {}.", ticketId, ticketIds);
                         tickets.get(i).addCommit(commitInfo);
                     } else {
-                        log.warn("No ticket of type found matching any of the following patterns: {}.", ticketId);
+                        log.debug("No ticket of type found matching any of the following patterns: {}.", ticketId);
                     }
                 }
             }
@@ -149,40 +141,4 @@ public class GitCommitManager {
         repository.close();
     }
 
-    public List<CommitInfo> retrieveVersionsCommits() {
-        List<CommitInfo> commitsWithVersion = new ArrayList<>();
-        try {
-            List<Ref> tagList = git.tagList().call();
-            RevWalk revWalk = new RevWalk(repository);
-            for (Ref tagRef : tagList) {
-                String found = tagRef.getName().split("-")[1];
-                Version version = versionsManager.getVersionByName(found);
-                if (version == null) {
-                    continue;
-                }
-
-                log.info("Retrieving commits for version {}", tagRef.getName());
-
-                ObjectId objectId = tagRef.getObjectId(); // Can be tag or commit
-                RevObject obj = revWalk.parseAny(objectId);
-
-                RevCommit commit;
-                if (obj instanceof RevTag) {
-                    commit = revWalk.parseCommit(((RevTag) obj).getObject());
-                } else {
-                    commit = revWalk.parseCommit(objectId);
-                }
-
-                Iterable<RevCommit> commits = git.log().add(commit.getId()).call();
-                commits.forEach(revCommit -> {
-                    CommitInfo commitInfo = new CommitInfo(revCommit.getName(), revCommit.getAuthorIdent().getName(), revCommit.getAuthorIdent().getEmailAddress(), LocalDate.ofInstant(Instant.ofEpochSecond(revCommit.getCommitTime()), ZoneId.systemDefault()), revCommit.getFullMessage());
-                    commitInfo.setVersion(version);
-                    commitsWithVersion.add(commitInfo);
-                });
-            }
-        } catch (Exception e) {
-            log.error("Error accessing Git repository: {}", e.getMessage(), e);
-        }
-        return commitsWithVersion;
-    }
 }

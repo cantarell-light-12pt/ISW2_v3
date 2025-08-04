@@ -1,5 +1,7 @@
 import it.uniroma2.dicii.issueManagement.exceptions.VersionsException;
 import it.uniroma2.dicii.issueManagement.model.*;
+import it.uniroma2.dicii.issueManagement.proportion.ProportionApplier;
+import it.uniroma2.dicii.issueManagement.proportion.ProportionApplierImpl;
 import it.uniroma2.dicii.issueManagement.ticket.JiraTicketsManager;
 import it.uniroma2.dicii.issueManagement.ticket.TicketsManager;
 import it.uniroma2.dicii.issueManagement.version.JiraVersionsManager;
@@ -39,19 +41,33 @@ public class Main {
 
             ticketsManager.retrieveTickets(filter);
 
-            // Get Git commits and associates them with tickets
-            GitCommitManager gitCommitManager = new GitCommitManager(versionsManager, ticketsManager);
+            // Gets commits from GitHub and associates them with tickets
+            GitCommitManager gitCommitManager = new GitCommitManager(ticketsManager);
+            gitCommitManager.linkCommitsToTickets();
 
-            gitCommitManager.getCommitsWithTickets();
-
+            // Tickets having no associates commits are removed
             ticketsManager.removeTicketsWithNoCommits();
 
-            // After gaining all ticket commits, infers the fix version from these (when not available)
+            // After gaining all ticket commits, when not available, infers the fix version from these
             ticketsManager.setFixVersionToTickets();
 
-            gitCommitManager.retrieveVersionsCommits();
-
             log.info("Successfully retrieved commits with tickets");
+
+            log.info("Applying proportion to tickets");
+            ProportionApplier proportionApplier = new ProportionApplierImpl(versionsManager);
+            proportionApplier.applyProportions(ticketsManager.getTickets());
+            log.info("Successfully applied proportion to tickets");
+
+            ticketsManager.getTickets().stream().filter(t -> t.getInjected() == null || t.getOpening() == null || t.getFixed() == null).forEach(
+                    t -> log.warn("Ticket {}; \t iv: {}; \t op: {}; \t fx: {}", t.getKey(), t.getInjected(), t.getOpening(), t.getFixed())
+            );
+
+            /*
+            if (.toList().isEmpty())
+                log.info("All tickets have injected version, opening version, and fixed version");
+
+             */
+
             log.info("Starting collectin metrics");
 
             log.info("Process terminated");

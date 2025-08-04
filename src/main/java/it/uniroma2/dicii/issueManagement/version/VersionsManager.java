@@ -4,6 +4,7 @@ import it.uniroma2.dicii.issueManagement.exceptions.VersionsException;
 import it.uniroma2.dicii.issueManagement.model.Version;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public interface VersionsManager {
 
@@ -32,5 +33,7 @@ public interface VersionsManager {
      * @return the first released version released after the given date, or null if no version is released after the given date
      */
     Version getFirstVersionAfterDate(LocalDate date);
+
+    List<Version> getVersions();
 
 }

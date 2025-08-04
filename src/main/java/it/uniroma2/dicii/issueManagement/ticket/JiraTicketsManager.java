@@ -105,7 +105,7 @@ public class JiraTicketsManager implements TicketsManager {
             }
         }
         tickets.removeAll(ticketsToRemove);
-        log.info("Successfully removed {} tickets with no associated commits", ticketsToRemove.size());
+        log.warn("Successfully removed {} tickets with no associated commits", ticketsToRemove.size());
     }
 
     @Override
@@ -160,7 +160,12 @@ public class JiraTicketsManager implements TicketsManager {
                 else log.warn("No versions found with name {}.", versionJson.getString("name"));
             }
         }
+        affectedVersions.sort(Comparator.comparing(Version::getName));
         ticket.setAffectedVersions(affectedVersions);
+
+        if (ticket.getAffectedVersions() != null && !ticket.getAffectedVersions().isEmpty()) {
+            ticket.setInjected(ticket.getAffectedVersions().get(0));
+        }
 
         Version openingVersion = versionsManager.getFirstVersionAfterDate(issuedDate);
         if (openingVersion != null) ticket.setOpening(openingVersion);

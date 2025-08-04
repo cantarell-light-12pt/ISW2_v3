@@ -4,6 +4,7 @@ import it.uniroma2.dicii.issueManagement.exceptions.VersionsException;
 import it.uniroma2.dicii.issueManagement.model.Version;
 import it.uniroma2.dicii.issueManagement.utils.JSONUtils;
 import it.uniroma2.dicii.properties.PropertiesManager;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,6 +22,7 @@ public class JiraVersionsManager implements VersionsManager {
 
     private final String url;
 
+    @Getter
     private final List<Version> versions;
 
     private final JSONUtils jsonUtils;
