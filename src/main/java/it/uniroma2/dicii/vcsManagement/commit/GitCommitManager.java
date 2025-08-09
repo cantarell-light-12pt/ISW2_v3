@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 import it.uniroma2.dicii.issueManagement.exceptions.NoTicketsFoundException;
 import it.uniroma2.dicii.issueManagement.model.Ticket;
 import it.uniroma2.dicii.issueManagement.ticket.TicketsManager;
-import it.uniroma2.dicii.issueManagement.version.VersionsManager;
 import it.uniroma2.dicii.properties.PropertiesManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
 import it.uniroma2.dicii.vcsManagement.model.CommitInfo;
@@ -28,7 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
-public class GitCommitManager {
+public class GitCommitManager implements AutoCloseable {
 
     private final String projectName;
 
@@ -98,6 +97,10 @@ public class GitCommitManager {
                     }
                 }
             }
+
+            // After associating commits to tickets, reorder each ticket's commits by date (ascending)
+            for (Ticket ticket: tickets)
+                ticket.orderAssociatedCommits();
         } catch (GitAPIException e) {
             throw new CommitException("Unable to retrieve commits: error accessing Git repository", e);
         } catch (NoTicketsFoundException e) {
@@ -136,6 +139,7 @@ public class GitCommitManager {
     /**
      * Closes the Git repository
      */
+    @Override
     public void close() {
         git.close();
         repository.close();

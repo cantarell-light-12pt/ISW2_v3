@@ -42,9 +42,13 @@ public class Ticket {
 
     private List<CommitInfo> associatedCommits;
 
-    public void setAssociatedCommits(List<CommitInfo> associatedCommits) {
-        this.associatedCommits = associatedCommits;
-        this.associatedCommits.sort(Comparator.comparing(CommitInfo::getCommitDate));
+    /**
+     * Orders the commits associated with the ticket by commit date (ascending).
+     * If the ticket does not have any associated commits, this method does nothing.
+     */
+    public void orderAssociatedCommits() {
+        if (this.associatedCommits != null)
+            this.associatedCommits.sort(Comparator.comparing(CommitInfo::getCommitDate));
     }
 
     public void addCommit(CommitInfo commit) {
