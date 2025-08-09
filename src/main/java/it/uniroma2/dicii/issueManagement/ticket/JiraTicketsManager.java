@@ -65,7 +65,7 @@ public class JiraTicketsManager implements TicketsManager {
         String baseUrl = buildUrlFromFilter(ticketFilter);
         String url;
         // Get JSON API for closed bugs w/ AV in the project
-        log.info("Retrieving tickets (this may take a while)");
+        log.info("Retrieving tickets");
         do {
             //Only gets a max of 100 at a time, so must do this multiple times if bugs > 100
             url = String.format(baseUrl, i, PAGE_SIZE);

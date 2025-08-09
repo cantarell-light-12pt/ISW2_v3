@@ -32,7 +32,6 @@ public class GitCommitManager implements AutoCloseable {
     private final String projectName;
 
     private final Repository repository;
-    private final Git git;
     private final Pattern ticketPatternWithProjectName;
     private final Pattern ticketPatternWithIssue;
     private final Pattern ticketPatternWithHashtag;
@@ -52,8 +51,6 @@ public class GitCommitManager implements AutoCloseable {
         FileRepositoryBuilder builder = new FileRepositoryBuilder();
         repository = builder.setGitDir(new File(repoPath + "/.git")).readEnvironment().findGitDir().build();
 
-        git = new Git(repository);
-
         this.ticketPatternWithProjectName = Pattern.compile("(" + projectName + "-\\d+)");
         this.ticketPatternWithIssue = Pattern.compile("(ISSUE\\s\\d+)");
         this.ticketPatternWithHashtag = Pattern.compile("(#\\d+)");
@@ -63,7 +60,7 @@ public class GitCommitManager implements AutoCloseable {
      * Retrieves all commits from the repository and associates them with ticket IDs
      */
     public void linkCommitsToTickets() throws CommitException {
-        try {
+        try (Git git = new Git(repository)) {
             // Retrieves all the tickets from the tickets manager
             List<Ticket> tickets = ticketsManager.getTickets();
 
@@ -141,7 +138,6 @@ public class GitCommitManager implements AutoCloseable {
      */
     @Override
     public void close() {
-        git.close();
         repository.close();
     }
 
