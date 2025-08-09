@@ -42,36 +42,31 @@ public class Main {
             ticketsManager.retrieveTickets(filter);
 
             // Gets commits from GitHub and associates them with tickets
-            GitCommitManager gitCommitManager = new GitCommitManager(ticketsManager);
-            gitCommitManager.linkCommitsToTickets();
+            try(GitCommitManager gitCommitManager = new GitCommitManager(ticketsManager)) {
 
-            // Tickets having no associates commits are removed
-            ticketsManager.removeTicketsWithNoCommits();
+                gitCommitManager.linkCommitsToTickets();
 
-            // After gaining all ticket commits, when not available, infers the fix version from these
-            ticketsManager.setFixVersionToTickets();
+                // Tickets having no associates commits are removed
+                ticketsManager.removeTicketsWithNoCommits();
 
-            log.info("Successfully retrieved commits with tickets");
+                // After gaining all ticket commits, when not available, infers the fix version from these
+                ticketsManager.setFixVersionToTickets();
 
-            log.info("Applying proportion to tickets");
-            ProportionApplier proportionApplier = new ProportionApplierImpl(versionsManager);
-            proportionApplier.applyProportions(ticketsManager.getTickets());
-            log.info("Successfully applied proportion to tickets");
+                log.info("Successfully retrieved commits with tickets");
 
-            ticketsManager.getTickets().stream().filter(t -> t.getInjected() == null || t.getOpening() == null || t.getFixed() == null).forEach(
-                    t -> log.warn("Ticket {}; \t iv: {}; \t op: {}; \t fx: {}", t.getKey(), t.getInjected(), t.getOpening(), t.getFixed())
-            );
+                log.info("Applying proportion to tickets");
+                ProportionApplier proportionApplier = new ProportionApplierImpl(versionsManager);
+                proportionApplier.applyProportions(ticketsManager.getTickets());
+                log.info("Successfully applied proportion to tickets");
 
-            /*
-            if (.toList().isEmpty())
-                log.info("All tickets have injected version, opening version, and fixed version");
+                ticketsManager.getTickets().stream().filter(t -> t.getInjected() == null || t.getOpening() == null || t.getFixed() == null).forEach(
+                        t -> log.warn("Ticket {}; \t iv: {}; \t op: {}; \t fx: {}", t.getKey(), t.getInjected(), t.getOpening(), t.getFixed())
+                );
 
-             */
+                log.info("Starting collectin metrics");
 
-            log.info("Starting collectin metrics");
-
-            log.info("Process terminated");
-
+                log.info("Process terminated");
+            }
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
         } catch (CommitException e) {
