@@ -11,6 +11,8 @@ import it.uniroma2.dicii.issueManagement.version.VersionsManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitCommitManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitReleaseManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
+import it.uniroma2.dicii.vcsManagement.exception.TagRetrievalException;
+import it.uniroma2.dicii.vcsManagement.tags.GitTagsManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -52,14 +54,16 @@ public class Application {
                 logUnusableTickets(ticketsManager);
             }
 
-            setCommitIdsToVersion(versionsManager.getVersions(), ticketsManager.getTickets());
-            if (verbose) versionsManager.getVersions().forEach(v -> {
-                log.info("Version {} has commit ID {}", v.getName(), v.getCommitId());
-            });
+            // Retrieves tags from Git; these will be used to apply git checkout at specific versions
+            GitTagsManager tagsManager = new GitTagsManager();
+            tagsManager.retrieveTags();
+            tagsManager.getTags().forEach(t -> log.info("Tag {} at commit id {}", t.getTagName(), t.getAssociatedCommitId()));
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
         } catch (CommitException | IOException e) {
             log.error("Error retrieving commits: {}", e.getMessage(), e);
+        } catch (TagRetrievalException e) {
+            log.error("Error retrieving tags: {}", e.getMessage(), e);
         } finally {
             log.info("Process terminated");
         }
