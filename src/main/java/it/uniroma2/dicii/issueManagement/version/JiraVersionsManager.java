@@ -8,12 +8,12 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -51,28 +51,48 @@ public class JiraVersionsManager implements VersionsManager {
             throw new VersionsException("Unable to parse versions retrieved from " + url, e);
         }
 
+        // If no error occurred, parses the versions from the JSON
         this.versions.clear();
-        // Takes the "versions" field from the JSON
         int versionsNumber = versions.length();
         String name, id;
         boolean released = false;
+        boolean overdue = false;
+        JSONObject jsonObject;
         for (int i = 0; i < versionsNumber; i++) {
             name = id = "";
-            if (versions.getJSONObject(i).has("releaseDate")) {
-                if (versions.getJSONObject(i).has("name")) name = versions.getJSONObject(i).get("name").toString();
-                if (versions.getJSONObject(i).has("id")) id = versions.getJSONObject(i).get("id").toString();
-                if (versions.getJSONObject(i).has("released"))
-                    released = versions.getJSONObject(i).getBoolean("released");
-                this.versions.add(new Version(id, name, LocalDate.parse(versions.getJSONObject(i).getString("releaseDate")), released));
+            jsonObject = versions.getJSONObject(i);
+            if (jsonObject.has("releaseDate")) {
+                if (jsonObject.has("name"))
+                    name = jsonObject.get("name").toString();
+                if (jsonObject.has("id"))
+                    id = jsonObject.get("id").toString();
+                if (jsonObject.has("released"))
+                    released = jsonObject.getBoolean("released");
+                if (jsonObject.has("overdue"))
+                    released = jsonObject.getBoolean("overdue");
+                this.versions.add(new Version(id, name, LocalDate.parse(jsonObject.getString("releaseDate")), released, overdue));
             } else {
                 log.warn("Version {} has no release date", id);
             }
         }
 
-        // Order releases by date, from oldest to newest
-        this.versions.sort(Comparator.comparing(Version::getReleaseDate));
+        // Order releases by name
+        this.versions.sort(Version::compare);
 
         log.info("Successfully retrieved {} versions out of {} releases", this.versions.size(), versionsNumber);
+    }
+
+    @Override
+    public void removeUnreleasedVersions() {
+        List<Version> versionsToRemove = new ArrayList<>();
+        for (Version version : this.versions) {
+            if (!version.isReleased() && !version.isOverdue()) {
+                versionsToRemove.add(version);
+                log.warn("Version {} has not been released. Removing...", version.getName());
+            }
+        }
+        this.versions.removeAll(versionsToRemove);
+        log.warn("Successfully removed {} unreleased versions", versionsToRemove.size());
     }
 
     @Override

@@ -14,6 +14,11 @@ public interface VersionsManager {
     void getVersionsInfo() throws VersionsException;
 
     /**
+     * Removes all unreleased versions
+     */
+    void removeUnreleasedVersions();
+
+    /**
      * List all versions
      */
     void listVersions();

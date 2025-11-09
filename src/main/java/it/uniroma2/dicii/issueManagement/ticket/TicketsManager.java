@@ -2,7 +2,6 @@ package it.uniroma2.dicii.issueManagement.ticket;
 
 import it.uniroma2.dicii.issueManagement.model.Ticket;
 import it.uniroma2.dicii.issueManagement.model.TicketFilter;
-import it.uniroma2.dicii.issueManagement.version.VersionsManager;
 
 import java.util.List;
 
@@ -31,6 +30,11 @@ public interface TicketsManager {
     void removeTicketsWithNoCommits();
 
     /**
+     * Removes all tickets with no fixed version.
+     */
+    void removeTicketsWithNoFixVersion();
+
+    /**
      * Sets the fixed version to all tickets using the commits associated with each ticket
      */
     void setFixVersionToTickets();
@@ -40,7 +44,5 @@ public interface TicketsManager {
      * @return the retrieved project tickets
      */
     List<Ticket> getTickets();
-
-    VersionsManager getVersionsManager();
 
 }

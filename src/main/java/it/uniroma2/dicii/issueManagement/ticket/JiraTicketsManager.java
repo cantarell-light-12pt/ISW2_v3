@@ -109,6 +109,19 @@ public class JiraTicketsManager implements TicketsManager {
     }
 
     @Override
+    public void removeTicketsWithNoFixVersion() {
+        List<Ticket> ticketsToRemove = new ArrayList<>();
+        for (Ticket ticket : tickets) {
+            if (ticket.getFixed() == null) {
+                ticketsToRemove.add(ticket);
+                log.warn("Ticket {} has no fix version. Removing...", ticket.getKey());
+            }
+        }
+        tickets.removeAll(ticketsToRemove);
+        log.warn("Successfully removed {} tickets with no fix version", ticketsToRemove.size());
+    }
+
+    @Override
     public void setFixVersionToTickets() {
         tickets.stream().filter(t -> t.getFixed() == null).forEach(ticket -> {
             if (ticket.getAssociatedCommits() != null && !ticket.getAssociatedCommits().isEmpty()) {
@@ -211,6 +224,7 @@ public class JiraTicketsManager implements TicketsManager {
             if (ticketFixVersions.size() > 1) ticketFixVersions.sort(Comparator.comparing(Version::getReleaseDate));
             fixVersion = ticketFixVersions.get(ticketFixVersions.size() - 1);
         }
+        log.debug("Fix version for ticket {}: {}", ticketJson.getString("key"), fixVersion == null ? "null" : fixVersion.getName());
 
         return fixVersion;
     }
