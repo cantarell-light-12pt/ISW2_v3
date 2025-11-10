@@ -73,6 +73,7 @@ public class GitCommitManager implements AutoCloseable {
             // Iterate through all commits and extract ticket IDs from commit messages
             for (RevCommit commit : commits) {
                 String commitMessage = commit.getFullMessage();
+                log.debug(commitMessage);
                 List<String> ticketIds = extractTicketIds(commitMessage);
 
                 if (ticketIds.isEmpty())

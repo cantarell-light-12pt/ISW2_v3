@@ -18,6 +18,11 @@ public class GitCheckoutManager {
         this.projectPath = PropertiesManager.getInstance().getProperty("project.repo.path");
     }
 
+    /**
+     * Checks out the project to the given commit ID
+     *
+     * @param commitId the commit ID to which the project is checked out
+     */
     public void checkOutProjectAtCommit(String commitId) {
         try (Git git = Git.open(new File(projectPath))) {
             CheckoutCommand checkout = git.checkout().setName(commitId);

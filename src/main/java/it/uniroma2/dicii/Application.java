@@ -8,10 +8,11 @@ import it.uniroma2.dicii.issueManagement.ticket.JiraTicketsManager;
 import it.uniroma2.dicii.issueManagement.ticket.TicketsManager;
 import it.uniroma2.dicii.issueManagement.version.JiraVersionsManager;
 import it.uniroma2.dicii.issueManagement.version.VersionsManager;
+import it.uniroma2.dicii.vcsManagement.commit.GitCheckoutManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitCommitManager;
-import it.uniroma2.dicii.vcsManagement.commit.GitReleaseManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
 import it.uniroma2.dicii.vcsManagement.exception.TagRetrievalException;
+import it.uniroma2.dicii.vcsManagement.model.Tag;
 import it.uniroma2.dicii.vcsManagement.tags.GitTagsManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,6 +32,8 @@ public class Application {
 
     public void execute(boolean verbose) {
         log.info("Starting process...");
+        log.info("Project name: {}", projectName);
+        log.info("Repository path: {}", repoPath);
 
         try {
             // Gets versions managed on Jira
@@ -58,6 +61,20 @@ public class Application {
             GitTagsManager tagsManager = new GitTagsManager();
             tagsManager.retrieveTags();
             tagsManager.getTags().forEach(t -> log.info("Tag {} at commit id {}", t.getTagName(), t.getAssociatedCommitId()));
+
+            // Executes git checkout at each version commit
+            GitCheckoutManager checkoutManager = new GitCheckoutManager();
+            Tag tag;
+            for (Version version : versionsManager.getVersions()) {
+                tag = tagsManager.findTagByVersionName(version.getName());
+                if (tag == null) {
+                    log.warn("No tag found for version {}", version.getName());
+                    continue;
+                }
+                version.setCommitId(tag.getAssociatedCommitId());
+                log.info("Checking out version {} at commit {}", version.getName(), version.getCommitId());
+                checkoutManager.checkOutProjectAtCommit(version.getCommitId());
+            }
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
         } catch (CommitException | IOException e) {
@@ -113,18 +130,5 @@ public class Application {
      */
     private void logUnusableTickets(TicketsManager ticketsManager) {
         ticketsManager.getTickets().stream().filter(t -> t.getInjected() == null || t.getOpening() == null || t.getFixed() == null).forEach(t -> log.debug("Ticket {}; \t iv: {}; \t op: {}; \t fx: {}", t.getKey(), t.getInjected(), t.getOpening(), t.getFixed()));
-    }
-
-    /**
-     * Sets the release commit IDs to the versions
-     *
-     * @param versions the versions to set the commit IDs to
-     * @param tickets  the tickets to retrieve the commit IDs from
-     */
-    private void setCommitIdsToVersion(List<Version> versions, List<Ticket> tickets) {
-        log.info("Setting commit IDs to version");
-        GitReleaseManager releaseManager = new GitReleaseManager(this.repoPath);
-        releaseManager.setVersionCommitsIds(versions, tickets);
-        log.info("Successfully set commit IDs to version");
     }
 }
