@@ -64,11 +64,8 @@ public class GitTagsManager {
                 RevObject obj = walk.parseCommit(targetId);
                 String commitId = obj.getId().getName();
 
-                // Extract the tag object ID for annotated tags; null for lightweight tags (no separate tag object)
-                String tagId = tagObjectId.equals(targetId) ? null : tagObjectId.getName();
-
-                log.debug("Tag {} points to commit {} (tagId: {})", simpleName, commitId, tagId);
-                tags.add(new Tag(tagId, simpleName, commitId));
+                log.debug("Tag {} points to commit {}", simpleName, commitId);
+                tags.add(new Tag(simpleName, commitId));
             }
         } catch (Exception e) {
             throw new TagRetrievalException("Failed to retrieve tags from repository", e);
