@@ -8,6 +8,13 @@
     <artifactId>ISW2_v3</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <properties>
+        <sonar.organization>andrewkant-ml</sonar.organization>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.json</groupId>
@@ -68,13 +75,6 @@
             <version>5.13.3</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
-
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
 
 </project>
