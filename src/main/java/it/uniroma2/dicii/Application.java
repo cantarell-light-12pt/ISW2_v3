@@ -1,7 +1,12 @@
 package it.uniroma2.dicii;
 
+import it.uniroma2.dicii.analysis.SonarAnalysisExecutor;
+import it.uniroma2.dicii.analysis.model.SonarAnalysisResult;
 import it.uniroma2.dicii.issueManagement.exceptions.VersionsException;
-import it.uniroma2.dicii.issueManagement.model.*;
+import it.uniroma2.dicii.issueManagement.model.ResolutionType;
+import it.uniroma2.dicii.issueManagement.model.TicketFilter;
+import it.uniroma2.dicii.issueManagement.model.TicketStatus;
+import it.uniroma2.dicii.issueManagement.model.TicketType;
 import it.uniroma2.dicii.issueManagement.proportion.ProportionApplier;
 import it.uniroma2.dicii.issueManagement.proportion.ProportionApplierImpl;
 import it.uniroma2.dicii.issueManagement.ticket.JiraTicketsManager;
@@ -12,7 +17,6 @@ import it.uniroma2.dicii.vcsManagement.commit.GitCheckoutManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitCommitManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
 import it.uniroma2.dicii.vcsManagement.exception.TagRetrievalException;
-import it.uniroma2.dicii.vcsManagement.model.Tag;
 import it.uniroma2.dicii.vcsManagement.tags.GitTagsManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,17 +68,10 @@ public class Application {
 
             // Executes git checkout at each version commit
             GitCheckoutManager checkoutManager = new GitCheckoutManager();
-            Tag tag;
-            for (Version version : versionsManager.getVersions()) {
-                tag = tagsManager.findTagByVersionName(version.getName());
-                if (tag == null) {
-                    log.warn("No tag found for version {}", version.getName());
-                    continue;
-                }
-                version.setCommitId(tag.getAssociatedCommitId());
-                log.info("Checking out version {} at commit {}", version.getName(), version.getCommitId());
-                checkoutManager.checkOutProjectAtCommit(version.getCommitId());
-            }
+
+            SonarAnalysisExecutor analysisManager = new SonarAnalysisExecutor(checkoutManager);
+            List<SonarAnalysisResult> analysisResults = analysisManager.executeAnalysisAtCommit(tagsManager.getTags().get(0).getAssociatedCommitId());
+            log.info("Successfully retrieved {} code smells.", analysisResults.size());
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
         } catch (CommitException | IOException e) {
