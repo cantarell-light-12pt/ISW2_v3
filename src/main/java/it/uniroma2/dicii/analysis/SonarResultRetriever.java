@@ -38,8 +38,8 @@ public class SonarResultRetriever {
 
         try {
             do {
-                // Construct URL: Filter by metricKeys=code_smell and the specific branch
-                String urlStr = String.format("%s/api/issues/search?componentKeys=%s&metricKeys=code_smell&ps=%d&p=%d", sonarHost, projectKey, PAGE_SIZE, page);
+                // Construct URL: Filter by impactSoftwareQualities=MAINTAINABILITY (i.e., code smells only) and the specific branch
+                String urlStr = String.format("%s/api/issues/search?componentKeys=%s&ps=%d&p=%d&impactSoftwareQualities=MAINTAINABILITY", sonarHost, projectKey, PAGE_SIZE, page);
 
                 JSONObject response = sendRequest(urlStr, sonarToken);
 
@@ -58,7 +58,6 @@ public class SonarResultRetriever {
                 }
                 log.info("Fetched page {}/{} ({} issues so far)", page, (int) Math.ceil((double) total / PAGE_SIZE), allIssues.size());
                 page++;
-
             } while (allIssues.size() < total);
 
         } catch (IOException e) {

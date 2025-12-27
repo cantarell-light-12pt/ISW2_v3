@@ -166,7 +166,7 @@ public class SonarAnalysisExecutor {
         command.add("sonar:sonar");
         command.add("-Dsonar.projectKey=" + projectKey);
         command.add("-Dsonar.host.url=" + sonarHost);
-        command.add("-Dsonar.login=" + sonarToken);
+        command.add("-Dsonar.token=" + sonarToken);
         // Explicitly tell SonarCloud which commit revision this is
         command.add("-Dsonar.scm.revision=" + commitId);
 
