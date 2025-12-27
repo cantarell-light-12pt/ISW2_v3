@@ -12,10 +12,10 @@ import java.io.IOException;
 @Slf4j
 public class GitCheckoutManager {
 
-    private final String projectPath;
+    private final String projectRepoPath;
 
     public GitCheckoutManager() {
-        this.projectPath = PropertiesManager.getInstance().getProperty("project.repo.path");
+        this.projectRepoPath = PropertiesManager.getInstance().getProperty("project.repo.path");
     }
 
     /**
@@ -24,7 +24,7 @@ public class GitCheckoutManager {
      * @param commitId the commit ID to which the project is checked out
      */
     public void checkOutProjectAtCommit(String commitId) {
-        try (Git git = Git.open(new File(projectPath))) {
+        try (Git git = Git.open(new File(projectRepoPath))) {
             CheckoutCommand checkout = git.checkout().setName(commitId);
             checkout.call();
             log.info("Successfully checked out to commit: {}", commitId);
