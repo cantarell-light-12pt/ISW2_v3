@@ -13,10 +13,16 @@ import it.uniroma2.dicii.issueManagement.ticket.JiraTicketsManager;
 import it.uniroma2.dicii.issueManagement.ticket.TicketsManager;
 import it.uniroma2.dicii.issueManagement.version.JiraVersionsManager;
 import it.uniroma2.dicii.issueManagement.version.VersionsManager;
+import it.uniroma2.dicii.metrics.CompositeMetricsExtractor;
+import it.uniroma2.dicii.metrics.impl.CKMetricsExtractor;
+import it.uniroma2.dicii.metrics.impl.JavaParserMetricsExtractor;
+import it.uniroma2.dicii.metrics.impl.SonarMetricsExtractor;
+import it.uniroma2.dicii.metrics.impl.VCSMetricsExtractor;
 import it.uniroma2.dicii.vcsManagement.commit.GitCheckoutManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitCommitManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
 import it.uniroma2.dicii.vcsManagement.exception.TagRetrievalException;
+import it.uniroma2.dicii.vcsManagement.model.Tag;
 import it.uniroma2.dicii.vcsManagement.tags.GitTagsManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,14 +70,44 @@ public class Application {
             // Retrieves tags from Git; these will be used to apply git checkout at specific versions
             GitTagsManager tagsManager = new GitTagsManager();
             tagsManager.retrieveTags();
-            tagsManager.getTags().forEach(t -> log.info("Tag {} at commit id {}", t.getTagName(), t.getAssociatedCommitId()));
+            List<Tag> tags = tagsManager.getTags();
+            tags.forEach(t -> log.info("Tag {} at commit id {}", t.getTagName(), t.getAssociatedCommitId()));
 
-            // Executes git checkout at each version commit
+            // This object executes `git checkout` at a specific commit
             GitCheckoutManager checkoutManager = new GitCheckoutManager();
+            SonarAnalysisExecutor analysisManager = new SonarAnalysisExecutor(this.repoPath);
+            CompositeMetricsExtractor compositeExtractor;
+            for (int i = 0; i < tags.size(); i++) {
+                // 1. Checkout to the desired version
+                checkoutManager.checkOutProjectAtCommit(tags.get(i).getAssociatedCommitId());
 
-            SonarAnalysisExecutor analysisManager = new SonarAnalysisExecutor(checkoutManager);
-            List<SonarAnalysisResult> analysisResults = analysisManager.executeAnalysisAtCommit(tagsManager.getTags().get(0).getAssociatedCommitId());
-            log.info("Successfully retrieved {} code smells.", analysisResults.size());
+                // 2. Run Sonar Analysis on SonarCloud
+                List<SonarAnalysisResult> sonarResults = analysisManager.executeAnalysisAtCommit(tags.get(i).getAssociatedCommitId());
+
+                // 3. Prepare the Composite Extractor
+                compositeExtractor = new CompositeMetricsExtractor();
+
+                // 4. Add the Workers
+                // A. Static Metrics (CK)
+                compositeExtractor.addExtractor(new CKMetricsExtractor(true, Integer.MAX_VALUE, true));
+
+                // B. Process Metrics (VCS)
+                // Requires previous commit for Churn. For the very first commit, previous is null.
+                String previousCommit = (i > 0) ? tags.get(i - 1).getAssociatedCommitId() : null;
+                compositeExtractor.addExtractor(new VCSMetricsExtractor(previousCommit));
+
+                compositeExtractor.addExtractor(new JavaParserMetricsExtractor());
+
+                // C. Quality Metrics (Sonar)
+                // Passes the list we just fetched so it can be mapped to methods
+                if (sonarResults != null && !sonarResults.isEmpty()) {
+                    compositeExtractor.addExtractor(new SonarMetricsExtractor(sonarResults));
+                } else {
+                    log.error("No results were retrieved from SonarCloud. Cannot execute Sonar metrics extraction.");
+                }
+
+                // 5. Add version results to the dataset
+            }
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
         } catch (CommitException | IOException e) {

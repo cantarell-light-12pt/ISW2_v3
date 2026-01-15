@@ -11,13 +11,4 @@ public interface MetricsExtractor {
      */
     List<MeasuredMethod> extractMetrics();
 
-    /**
-     * Extracts the metrics from the repository using the CK with the specified parameters
-     *
-     * @param useJars            specifies if Jars should be used
-     * @param maxAtOnce          max number of elements to analyze at once
-     * @param variablesAndFields specifies if variables and fields should be analyzed
-     */
-    List<MeasuredMethod> extractMetrics(Boolean useJars, Integer maxAtOnce, Boolean variablesAndFields);
-
 }

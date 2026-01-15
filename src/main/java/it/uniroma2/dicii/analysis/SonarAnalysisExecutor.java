@@ -2,8 +2,6 @@ package it.uniroma2.dicii.analysis;
 
 import it.uniroma2.dicii.analysis.model.SonarAnalysisResult;
 import it.uniroma2.dicii.jdk.JdkManager;
-import it.uniroma2.dicii.properties.PropertiesManager;
-import it.uniroma2.dicii.vcsManagement.commit.GitCheckoutManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
@@ -17,11 +15,9 @@ import java.util.List;
 public class SonarAnalysisExecutor {
 
     private final String repoPath;
-    private final GitCheckoutManager checkoutManager;
 
-    public SonarAnalysisExecutor(GitCheckoutManager checkoutManager) {
-        this.repoPath = PropertiesManager.getInstance().getProperty("project.repo.path");
-        this.checkoutManager = checkoutManager;
+    public SonarAnalysisExecutor(String repoPath) {
+        this.repoPath = repoPath;
     }
 
     /**
@@ -35,14 +31,11 @@ public class SonarAnalysisExecutor {
         log.info("--------------------------------------------------");
         log.info("Processing commit {}", commitId);
 
-        // 1. Checkout Code
-        checkoutManager.checkOutProjectAtCommit(commitId);
-
-        // 2. Detect Required Java Version
+        // 1. Detect Required Java Version
         String javaVersion = detectJavaVersion();
         log.info("Detected required Java version: {}", javaVersion);
 
-        // 3. Resolve JDK Path from Properties
+        // 2. Resolve JDK Path from Properties
         String jdkPath = JdkManager.getJdkPathForVersion(javaVersion);
         if (jdkPath == null) {
             log.warn("No configured JDK found for version '{}'. Using system default.", javaVersion);
@@ -98,7 +91,7 @@ public class SonarAnalysisExecutor {
             Process process = pb.start();
             return extractVersionFromProcessOutput(process);
         } catch (Exception e) {
-            log.error("Error detecting Java version: {}.\nFalling back to 1.8 (default)", e.getMessage());
+            log.error("Error detecting Java version: {}. Falling back to 1.8 (default)", e.getMessage());
             return "1.8"; // Safe fallback for BookKeeper
         }
     }
@@ -270,5 +263,4 @@ public class SonarAnalysisExecutor {
         }
         return null;
     }
-
 }

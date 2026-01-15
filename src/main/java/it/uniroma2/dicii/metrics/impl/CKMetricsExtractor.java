@@ -6,12 +6,11 @@ import com.github.mauricioaniche.ck.CKMethodResult;
 import com.github.mauricioaniche.ck.CKNotifier;
 import it.uniroma2.dicii.metrics.MetricsExtractor;
 import it.uniroma2.dicii.metrics.model.MeasuredMethod;
+import it.uniroma2.dicii.metrics.model.MetricsExtractorType;
 import it.uniroma2.dicii.properties.PropertiesManager;
 import lombok.extern.slf4j.Slf4j;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,24 +18,23 @@ import java.util.Map;
 @Slf4j
 public class CKMetricsExtractor implements MetricsExtractor {
 
-    private static final String HASHING_ALGORITHM = "SHA-256";
 
     private final String repoPath;
 
-    private Map<String, CKMethodResult> methodResults;
+    private final Boolean useJars;
+    private final Integer maxAtOnce;
+    private final Boolean variablesAndFields;
 
-    public CKMetricsExtractor() {
+    public CKMetricsExtractor(Boolean useJars, Integer maxAtOnce, Boolean variablesAndFields) {
         repoPath = PropertiesManager.getInstance().getProperty("project.repo.path");
+        this.useJars = useJars;
+        this.maxAtOnce = maxAtOnce;
+        this.variablesAndFields = variablesAndFields;
     }
 
     public List<MeasuredMethod> extractMetrics() {
-        Map<String, CKMethodResult> extractedMetrics = extractMetricsWithCK(new CK());
-        return null;
-    }
-
-    public List<MeasuredMethod> extractMetrics(Boolean useJars, Integer maxAtOnce, Boolean variablesAndFields) {
         Map<String, CKMethodResult> extractedMetrics = extractMetricsWithCK(new CK(useJars, maxAtOnce, variablesAndFields));
-        return null;
+        return convertToListOfMeasuredMethods(extractedMetrics);
     }
 
     /**
@@ -51,7 +49,7 @@ public class CKMetricsExtractor implements MetricsExtractor {
             @Override
             public void notify(CKClassResult classResult) {
                 for (CKMethodResult methodResult : classResult.getMethods()) {
-                    methodResults.put(getMethodName(methodResult), methodResult);
+                    methodResults.put(MethodNameGenerator.generateMethodName(methodResult.getQualifiedMethodName(), methodResult.getStartLine()), methodResult);
                 }
             }
 
@@ -59,39 +57,48 @@ public class CKMetricsExtractor implements MetricsExtractor {
             public void notifyError(String sourceFilePath, Exception e) {
                 log.error("Error analyzing file: {}. Exception: {} (cause: {})", sourceFilePath, e.getClass(), e.getMessage());
             }
-
-            /**
-             * Extracts the method name from the class and method results, generating a final name in the form of
-             * <code>path.to.class.methodName#hash</code>. The trailing hash is needed to avoid
-             *
-             * @param methodResult  the extracted method result
-             * @return              the complete, unique method name
-             */
-            private String getMethodName(CKMethodResult methodResult) {
-                String methodName = methodResult.getQualifiedMethodName().split("/")[0] + "#";
-                MessageDigest digest;
-                String hash;
-                try {
-                    digest = MessageDigest.getInstance(HASHING_ALGORITHM);
-                    byte[] hashBytes = digest.digest(methodResult.getMethodName().getBytes(StandardCharsets.UTF_8));
-                    hash = bytesToHex(hashBytes);
-                } catch (NoSuchAlgorithmException e) {
-                    log.error("Unable to create SHA-256 digest: {}", e.getMessage());
-                    hash = "123456"; // Default "hash"
-                }
-                return methodName + "#" + hash;
-            }
-
-            private String bytesToHex(byte[] bytes) {
-                StringBuilder sb = new StringBuilder(bytes.length * 2);
-                for (byte b : bytes) {
-                    // & 0xff to avoid sign extension, then format as two hex digits
-                    sb.append(String.format("%02x", b & 0xff));
-                }
-                return sb.toString();
-            }
         });
         log.info("Successfully extracted metrics for {} methods", methodResults.size());
         return methodResults;
+    }
+
+    /**
+     * Converts a map of extracted method metrics into a list of {@code MeasuredMethod} objects.
+     * The map keys represent the method names, and the values are {@code CKMethodResult} objects
+     * containing various metrics for the methods.
+     * <p>
+     * The requested metrics obtainable from the CK library are:
+     * <ul>
+     * <li>cyclomatic complexity</li>
+     * <li>max nesting depth</li>
+     * <li>fan-in</li>
+     * <li>fan-out</li>
+     * <li>number of source lines of code</li>
+     * <li>number of parameters</li>
+     * <li>whether the method has Javadocs</li>
+     * </ul>
+     * </p>
+     *
+     * @param extractedMetrics a map where keys are method names and values are {@code CKMethodResult} objects
+     *                         containing metrics such as cyclomatic complexity, max nesting depth, fan-in, fan-out, etc.
+     * @return a list of {@code MeasuredMethod} objects populated with the corresponding metrics
+     */
+    private List<MeasuredMethod> convertToListOfMeasuredMethods(Map<String, CKMethodResult> extractedMetrics) {
+        List<MeasuredMethod> measuredMethods = new ArrayList<>();
+        MeasuredMethod measuredMethod;
+        for (Map.Entry<String, CKMethodResult> entry : extractedMetrics.entrySet()) {
+            measuredMethod = new MeasuredMethod();
+            measuredMethod.setExtractedFrom(MetricsExtractorType.CK);
+            measuredMethod.setMethodName(entry.getKey());
+            measuredMethod.setCyclomaticComplexity(entry.getValue().getWmc());
+            measuredMethod.setMaxNestingDepth(entry.getValue().getMaxNestedBlocks());
+            measuredMethod.setHasJavaDocs(entry.getValue().getHasJavadoc());
+            measuredMethod.setSourceLinesOfCode(entry.getValue().getLoc());
+            measuredMethod.setParametersCount(entry.getValue().getParametersQty());
+            measuredMethod.setFanIn(entry.getValue().getFanin());
+            measuredMethod.setFanOut(entry.getValue().getFanout());
+            measuredMethods.add(measuredMethod);
+        }
+        return measuredMethods;
     }
 }
