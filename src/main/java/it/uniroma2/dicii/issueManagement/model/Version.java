@@ -1,11 +1,9 @@
 package it.uniroma2.dicii.issueManagement.model;
 
-import it.uniroma2.dicii.methods.model.ProjectMethod;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Data
 @RequiredArgsConstructor
@@ -22,8 +20,6 @@ public class Version {
     private final boolean overdue;
 
     private String commitId;
-
-    private List<ProjectMethod> methods;
 
     /**
      * Compares two versions based on their semantic versioning.
