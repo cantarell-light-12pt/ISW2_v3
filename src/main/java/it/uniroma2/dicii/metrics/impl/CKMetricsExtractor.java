@@ -32,6 +32,7 @@ public class CKMetricsExtractor implements MetricsExtractor {
         this.variablesAndFields = variablesAndFields;
     }
 
+    @Override
     public List<MeasuredMethod> extractMetrics() {
         Map<String, CKMethodResult> extractedMetrics = extractMetricsWithCK(new CK(useJars, maxAtOnce, variablesAndFields));
         return convertToListOfMeasuredMethods(extractedMetrics);

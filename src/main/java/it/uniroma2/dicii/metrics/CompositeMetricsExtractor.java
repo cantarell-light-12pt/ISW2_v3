@@ -61,7 +61,7 @@ public class CompositeMetricsExtractor implements MetricsExtractor {
             case CK: {
                 existing.setCyclomaticComplexity(incoming.getCyclomaticComplexity());
                 existing.setMaxNestingDepth(incoming.getMaxNestingDepth());
-                existing.setHasJavaDocs(incoming.getHasJavaDocs());
+                existing.setHasJavaDocs(incoming.isHasJavaDocs());
                 existing.setSourceLinesOfCode(incoming.getSourceLinesOfCode());
                 existing.setParametersCount(incoming.getParametersCount());
                 existing.setFanIn(incoming.getFanIn());

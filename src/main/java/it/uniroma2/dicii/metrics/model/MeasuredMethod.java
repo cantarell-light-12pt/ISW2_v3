@@ -20,60 +20,79 @@ public class MeasuredMethod {
     private String methodName;
 
     // Complexity metrics
-    private Integer cyclomaticComplexity;
-    private Integer cognitiveComplexity;
-    private Integer maxNestingDepth;
-    private Boolean hasJavaDocs;
+    private int cyclomaticComplexity;
+    private int cognitiveComplexity;
+    private int maxNestingDepth;
+    private boolean hasJavaDocs;
 
     // Size metrics
-    private Integer sourceLinesOfCode;
-    private Integer parametersCount;
-    private Double commentDensity;
+    private int sourceLinesOfCode;
+    private int parametersCount;
+    private double commentDensity;
 
     // Coupling metrics
-    private Integer fanIn;
-    private Integer fanOut;
+    private int fanIn;
+    private int fanOut;
 
     // History metrics
-    private Integer churn;
-    private Integer defectCount;
-    private Integer developerCount;
+    private int churn;
+    private int defectCount;
+    private int developerCount;
 
     // Smells metrics
-    private Integer blockerSmellsCount;
-    private Integer criticalSmellsCount;
-    private Integer majorSmellsCount;
-    private Integer minorSmellsCount;
-    private Integer infoSmellsCount;
+    private int blockerSmellsCount = 0;
+    private int criticalSmellsCount = 0;
+    private int majorSmellsCount = 0;
+    private int minorSmellsCount = 0;
+    private int infoSmellsCount = 0;
 
-    public void incrementOrSetBlockerSmellsCount() {
-        if (blockerSmellsCount == null) blockerSmellsCount = 0;
-        else blockerSmellsCount++;
+    // Buggyness flag
+    private boolean buggy;
+
+    public void incrementBlockerSmellsCount() {
+        blockerSmellsCount++;
     }
 
-    public void incrementOrSetCriticalSmellsCount() {
-        if (criticalSmellsCount == null) criticalSmellsCount = 0;
-        else criticalSmellsCount++;
+    public void incrementCriticalSmellsCount() {
+        criticalSmellsCount++;
     }
 
-    public void incrementOrSetMajorSmellsCount() {
-        if (majorSmellsCount == null) majorSmellsCount = 0;
-        else majorSmellsCount++;
+    public void incrementMajorSmellsCount() {
+        majorSmellsCount++;
     }
 
-    public void incrementOrSetMinorSmellsCount() {
-        if (minorSmellsCount == null) minorSmellsCount = 0;
-        else minorSmellsCount++;
+    public void incrementMinorSmellsCount() {
+        minorSmellsCount++;
     }
 
-    public void incrementOrSetInfoSmellsCount() {
-        if (infoSmellsCount == null) infoSmellsCount = 0;
-        else infoSmellsCount++;
+    public void incrementInfoSmellsCount() {
+        infoSmellsCount++;
     }
 
-    public void incrementOrSetDefectCount() {
-        if (defectCount == null) defectCount = 0;
-        else defectCount++;
+    public void incrementDefectCount() {
+        defectCount++;
+    }
+
+    public String toCsvRow() {
+        return methodName + "," +
+                cyclomaticComplexity + "," +
+                cognitiveComplexity + "," +
+                maxNestingDepth + "," +
+                (hasJavaDocs ? "1" : "0") + "," +
+                sourceLinesOfCode + "," +
+                parametersCount + "," +
+                commentDensity + "," +
+                fanIn + "," +
+                fanOut + "," +
+                churn + "," +
+                defectCount + "," +
+                developerCount + "," +
+                blockerSmellsCount + "," +
+                criticalSmellsCount + "," +
+                majorSmellsCount + "," +
+                minorSmellsCount + "," +
+                infoSmellsCount + "," +
+                (buggy ? "1" : "0");
     }
 
 }
