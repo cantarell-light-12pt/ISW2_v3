@@ -89,6 +89,7 @@ public class SonarMetricsExtractor implements MetricsExtractor {
 
             MeasuredMethod mm = new MeasuredMethod();
             mm.setExtractedFrom(MetricsExtractorType.SONAR);
+            mm.setBuggy(false); // Assuming non-buggy methods by default
             mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedMethodNamePrefix + method.getNameAsString(), startLine));
 
             // Count smells strictly within this method's body
@@ -96,8 +97,10 @@ public class SonarMetricsExtractor implements MetricsExtractor {
                 if (issue.getLine() >= startLine && issue.getLine() <= endLine) {
                     if (issue.getType().equals("CODE_SMELL"))
                         incrementSmellCount(mm, issue.getSeverity());
-                    if (issue.getType().equals("BUG"))
-                        mm.incrementOrSetDefectCount();
+                    if (issue.getType().equals("BUG")) {
+                        mm.incrementDefectCount();
+                        mm.setBuggy(true); // Sets buggy=true if any defect is found
+                    }
                 }
             results.add(mm);
         }
@@ -115,11 +118,11 @@ public class SonarMetricsExtractor implements MetricsExtractor {
         // Map Sonar Severity strings to MeasuredMethod fields
         // Severities: BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         switch (severity.toUpperCase()) {
-            case "BLOCKER" -> mm.incrementOrSetBlockerSmellsCount();
-            case "CRITICAL" -> mm.incrementOrSetCriticalSmellsCount(); // Mapping Critical -> Major if you lack a Critical field
-            case "MAJOR" -> mm.incrementOrSetMajorSmellsCount();
-            case "MINOR" -> mm.incrementOrSetMinorSmellsCount();
-            case "INFO" -> mm.incrementOrSetInfoSmellsCount();
+            case "BLOCKER" -> mm.incrementBlockerSmellsCount();
+            case "CRITICAL" -> mm.incrementCriticalSmellsCount(); // Mapping Critical -> Major if you lack a Critical field
+            case "MAJOR" -> mm.incrementMajorSmellsCount();
+            case "MINOR" -> mm.incrementMinorSmellsCount();
+            case "INFO" -> mm.incrementInfoSmellsCount();
             default -> log.warn("Unknown Sonar smell severity: {}. Skipping.", severity);
         }
     }

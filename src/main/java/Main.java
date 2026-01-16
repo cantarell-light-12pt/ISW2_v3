@@ -9,8 +9,9 @@ public class Main {
 
         String repoPath = PropertiesManager.getInstance().getProperty("project.repo.path");
         String projectName = PropertiesManager.getInstance().getProperty("project.name");
+        String outputPath = PropertiesManager.getInstance().getProperty("project.output.directory");
 
-        Application app = new Application(projectName, repoPath);
+        Application app = new Application(projectName, repoPath, outputPath);
         app.execute(verbose);
     }
 }

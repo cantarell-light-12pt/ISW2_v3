@@ -2,6 +2,7 @@ package it.uniroma2.dicii;
 
 import it.uniroma2.dicii.analysis.SonarAnalysisExecutor;
 import it.uniroma2.dicii.analysis.model.SonarAnalysisResult;
+import it.uniroma2.dicii.export.DatasetManager;
 import it.uniroma2.dicii.issueManagement.exceptions.VersionsException;
 import it.uniroma2.dicii.issueManagement.model.ResolutionType;
 import it.uniroma2.dicii.issueManagement.model.TicketFilter;
@@ -18,6 +19,7 @@ import it.uniroma2.dicii.metrics.impl.CKMetricsExtractor;
 import it.uniroma2.dicii.metrics.impl.JavaParserMetricsExtractor;
 import it.uniroma2.dicii.metrics.impl.SonarMetricsExtractor;
 import it.uniroma2.dicii.metrics.impl.VCSMetricsExtractor;
+import it.uniroma2.dicii.metrics.model.MeasuredMethod;
 import it.uniroma2.dicii.vcsManagement.commit.GitCheckoutManager;
 import it.uniroma2.dicii.vcsManagement.commit.GitCommitManager;
 import it.uniroma2.dicii.vcsManagement.exception.CommitException;
@@ -34,10 +36,13 @@ public class Application {
 
     private final String projectName;
     private final String repoPath;
+    private final String outputPath;
 
-    public Application(String projectName, String repoPath) {
+    public Application(String projectName, String repoPath, String outputPath) {
         this.repoPath = repoPath;
         this.projectName = projectName;
+        if (outputPath.endsWith("/")) this.outputPath = outputPath + projectName + ".csv";
+        else this.outputPath = outputPath + "/" + projectName + ".csv";
     }
 
     public void execute(boolean verbose) {
@@ -77,6 +82,8 @@ public class Application {
             GitCheckoutManager checkoutManager = new GitCheckoutManager();
             SonarAnalysisExecutor analysisManager = new SonarAnalysisExecutor(this.repoPath);
             CompositeMetricsExtractor compositeExtractor;
+            DatasetManager datasetManager = new DatasetManager(this.outputPath);
+            datasetManager.initDataset();
             for (int i = 0; i < tags.size(); i++) {
                 // 1. Checkout to the desired version
                 checkoutManager.checkOutProjectAtCommit(tags.get(i).getAssociatedCommitId());
@@ -107,6 +114,9 @@ public class Application {
                 }
 
                 // 5. Add version results to the dataset
+                List<MeasuredMethod> measuredMethods = compositeExtractor.extractMetrics();
+                datasetManager.appendToDataset(tags.get(i).getTagName(), measuredMethods);
+                log.info("Round completed for version {}", tags.get(i).getTagName());
             }
         } catch (VersionsException e) {
             log.error("Error retrieving versions: {}", e.getMessage(), e);
