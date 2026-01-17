@@ -39,7 +39,7 @@ public class SonarResultRetriever {
         try {
             do {
                 // Construct URL: Filter by impactSoftwareQualities=MAINTAINABILITY (i.e., code smells only) and the specific branch
-                String urlStr = String.format("%s/api/issues/search?componentKeys=%s&ps=%d&p=%d&impactSoftwareQualities=MAINTAINABILITY,RELIABILITY", sonarHost, projectKey, PAGE_SIZE, page);
+                String urlStr = String.format("%s/api/issues/search?componentKeys=%s&ps=%d&p=%d&impactSoftwareQualities=MAINTAINABILITY,RELIABILITY&resolved=false", sonarHost, projectKey, PAGE_SIZE, page);
 
                 JSONObject response = sendRequest(urlStr, sonarToken);
 

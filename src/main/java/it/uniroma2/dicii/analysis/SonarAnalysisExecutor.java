@@ -2,6 +2,7 @@ package it.uniroma2.dicii.analysis;
 
 import it.uniroma2.dicii.analysis.model.SonarAnalysisResult;
 import it.uniroma2.dicii.jdk.JdkManager;
+import it.uniroma2.dicii.properties.PropertiesManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
@@ -85,7 +86,7 @@ public class SonarAnalysisExecutor {
     private String detectJavaVersion() {
         try {
             // 1. Try to read the property
-            ProcessBuilder pb = new ProcessBuilder("mvn", "help:evaluate", "-Dexpression=maven.compiler.source", "-q", "-DforceStdout");
+            ProcessBuilder pb = new ProcessBuilder("mvn", "help:evaluate", "-Dexpression=targetJdk", "-q", "-DforceStdout");
             log.debug("Executing command: {}", pb.command());
             pb.directory(new File(repoPath));
             Process process = pb.start();
@@ -111,17 +112,19 @@ public class SonarAnalysisExecutor {
         String version = "";
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
-            while ((line = reader.readLine()) != null)
+            while ((line = reader.readLine()) != null) {
+                log.info("Maven Output: {}", line);
                 // Filter out Maven noise and the specific error message
                 if (!line.isBlank() && !line.contains("null object or invalid expression") && !line.startsWith("["))
                     version = line.trim();
+            }
         }
 
         if (version.isEmpty()) {
             // You could add a second ProcessBuilder call here for 'maven.compiler.target'
             // but usually if source is missing, target is too.
             log.warn("Property 'maven.compiler.source' not found. Falling back to default.");
-            return "1.8";
+            return "1.6";
         }
         return version;
     }
@@ -156,7 +159,7 @@ public class SonarAnalysisExecutor {
 
         List<String> command = new ArrayList<>();
         command.add("mvn");
-        command.add("sonar:sonar");
+        command.add("org.sonarsource.scanner.maven:sonar-maven-plugin:3.10.0.2594:sonar");
         command.add("-Dsonar.projectKey=" + projectKey);
         command.add("-Dsonar.host.url=" + sonarHost);
         command.add("-Dsonar.token=" + sonarToken);
@@ -167,6 +170,10 @@ public class SonarAnalysisExecutor {
             command.add("-Dsonar.organization=" + sonarOrg);
         }
 
+        // This tells Sonar: "Don't even look at this broken module."
+        command.add("-pl");
+        command.add("!org.apache.bookkeeper.stats:twitter-science-provider");
+
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(new File(repoPath));
         pb.redirectErrorStream(true);
@@ -176,7 +183,7 @@ public class SonarAnalysisExecutor {
         Process process = pb.start();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
-            while ((line = reader.readLine()) != null) log.debug("[Sonar] {}", line);
+            while ((line = reader.readLine()) != null) log.info("[Sonar] {}", line);
         }
 
         int exitCode = process.waitFor();
@@ -218,19 +225,53 @@ public class SonarAnalysisExecutor {
      * @throws InterruptedException if the process is interrupted during execution
      */
     private void executeMavenInstall(String jdkHome) throws IOException, InterruptedException {
-        List<String> command = new ArrayList<>();
-        command.add("mvn");
-        command.add("clean");
-        command.add("install");
-        command.add("-DskipTests=true");
+        List<String> dockerCmd = new ArrayList<>();
+        dockerCmd.add("docker");
+        dockerCmd.add("run");
+        dockerCmd.add("--rm");
 
-        ProcessBuilder pb = buildProcessFromCommandsWithJdk(command, jdkHome);
-        log.info("Executing Maven Verify with JAVA_HOME={}", jdkHome != null ? jdkHome : "System Default");
+        // Run as the current Host User
+        dockerCmd.add("-u");
+        dockerCmd.add(getLinuxUserId());
+
+        // Map Project Directory
+        dockerCmd.add("-v");
+        dockerCmd.add(repoPath + ":/usr/src/mymaven");
+
+        // Map .m2 to a neutral location (/tmp/home)
+        String localM2Path = PropertiesManager.getInstance().getProperty("m2.directory");
+        String containerHome = "/tmp/maven-home"; // A fake home dir inside container
+
+        // [CHANGED] Map settings.xml directly to the fake home
+        // We point Maven to this file explicitly later using -s
+        boolean hasSettings = new java.io.File(localM2Path + "/settings.xml").exists();
+        if (hasSettings) {
+            dockerCmd.add("-v");
+            dockerCmd.add(localM2Path + "/settings.xml:" + containerHome + "/settings.xml");
+        }
+
+        // Set Working Directory inside Container
+        dockerCmd.add("-w");
+        dockerCmd.add("/usr/src/mymaven");
+
+        // Image and Maven Goal
+        dockerCmd.add("maven:3.6-jdk-8");
+        dockerCmd.add("mvn");
+        dockerCmd.add("clean");
+        dockerCmd.add("install");
+        dockerCmd.add("-DskipTests"); // Skip tests to save time, optional
+
+        // This tells Maven: "Build everything EXCEPT the twitter-science-provider"
+        dockerCmd.add("-pl");
+        dockerCmd.add("!org.apache.bookkeeper.stats:twitter-science-provider");
+
+        ProcessBuilder pb = buildProcessFromCommandsWithJdk(dockerCmd, jdkHome);
+        log.info("Executing maven install with JAVA_HOME={}", jdkHome != null ? jdkHome : "System Default");
 
         Process process = pb.start();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
-            while ((line = reader.readLine()) != null) log.debug("[Maven] {}", line);
+            while ((line = reader.readLine()) != null) log.info("[Maven] {}", line);
         }
 
         int exitCode = process.waitFor();
@@ -262,5 +303,20 @@ public class SonarAnalysisExecutor {
             log.error("Failed to read report-task.txt", e);
         }
         return null;
+    }
+
+    /**
+     * Gets the current user's UID and GID for Docker (e.g., "1000:1000").
+     * This ensures files created by Docker are owned by YOU, not root.
+     */
+    private String getLinuxUserId() {
+        try {
+            String uid = new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec("id -u").getInputStream())).readLine();
+            String gid = new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec("id -g").getInputStream())).readLine();
+            return uid + ":" + gid;
+        } catch (IOException e) {
+            log.warn("Could not determine UID/GID, defaulting to current user.");
+            return "1000:1000"; // Safe default for most Linux users
+        }
     }
 }

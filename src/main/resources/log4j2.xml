@@ -7,6 +7,7 @@
     </Appenders>
     <Loggers>
         <Logger name="it.uniroma2.dicii" level="INFO"/>
+        <Logger name="com.github.mauricioaniche.ck" level="WARN"/>
         <!-- Root Logger -->
         <Root level="INFO">
             <AppenderRef ref="Console"/>

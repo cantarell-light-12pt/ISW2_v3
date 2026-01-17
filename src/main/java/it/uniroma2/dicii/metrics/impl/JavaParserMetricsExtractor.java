@@ -45,21 +45,24 @@ public class JavaParserMetricsExtractor implements MetricsExtractor {
                 try {
                     CompilationUnit cu = StaticJavaParser.parse(path);
                     String relativePath = getRelativePath(path);
-                    if (!relativePath.contains("src/test/java")) {
+                    if (!relativePath.contains("src/test/java") && !relativePath.contains("/target/")) {
                         String fullyQualifiedNamePrefix = relativePath.split("src/main/java/")[1].replace("/", ".").replace(".java", ".");
 
                         cu.findAll(MethodDeclaration.class).forEach(method -> {
-                            MeasuredMethod mm = new MeasuredMethod();
-                            mm.setExtractedFrom(MetricsExtractorType.JAVA_PARSER);
-                            int startLine = 0;
-                            if (method.getBegin().isPresent()) startLine = method.getBegin().get().line;
-                            mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedNamePrefix + method.getNameAsString(), startLine));
+                            // Only analyzes class methods, excluding interfaces
+                            if (method.getBody().isPresent()) {
+                                MeasuredMethod mm = new MeasuredMethod();
+                                mm.setExtractedFrom(MetricsExtractorType.JAVA_PARSER);
+                                int startLine = 0;
+                                if (method.getBegin().isPresent()) startLine = method.getBegin().get().line;
+                                mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedNamePrefix + method.getNameAsString(), startLine));
 
-                            // Computes Comment Density and Cognitive Complexity
-                            mm.setCommentDensity(calculateCommentDensity(method));
-                            mm.setCognitiveComplexity(calculateCognitiveComplexity(method));
+                                // Computes Comment Density and Cognitive Complexity
+                                mm.setCommentDensity(calculateCommentDensity(method));
+                                mm.setCognitiveComplexity(calculateCognitiveComplexity(method));
 
-                            results.add(mm);
+                                results.add(mm);
+                            }
                         });
                     }
                 } catch (IOException e) {

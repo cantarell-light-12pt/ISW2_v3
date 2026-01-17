@@ -20,16 +20,16 @@ public class DatasetManager {
 
     public void initDataset() {
         try (FileWriter fileWriter = new FileWriter(datasetPath)) {
-            fileWriter.write(HEADER);
+            fileWriter.write(HEADER + "\n");
         } catch (IOException e) {
             log.error("Error while creating dataset: {}", e.getMessage());
         }
     }
 
-    public void appendToDataset(String version, List<MeasuredMethod> measuredMethods) throws IOException {
-        try (FileWriter fileWriter = new FileWriter(datasetPath)) {
+    public void appendToDataset(String version, List<MeasuredMethod> measuredMethods) {
+        try (FileWriter fileWriter = new FileWriter(datasetPath, true)) {
             for (MeasuredMethod method : measuredMethods)
-                fileWriter.write(version + "," + method.toCsvRow() + "\n");
+                fileWriter.append(version).append(",").append(method.toCsvRow()).append("\n");
             log.info("Dataset updated successfully ({} rows written)", measuredMethods.size());
         } catch (IOException e) {
             log.error("Error while exporting dataset: {}", e.getMessage());

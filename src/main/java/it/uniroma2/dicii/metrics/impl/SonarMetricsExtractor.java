@@ -47,7 +47,7 @@ public class SonarMetricsExtractor implements MetricsExtractor {
                 try {
                     File file = path.toFile();
                     String relativePath = getRelativePath(path);
-                    if (!relativePath.contains("src/test/java")) {
+                    if (!relativePath.contains("src/test/java") && !relativePath.contains("/target/")) {
                         String fullyQualifiedNamePrefix = relativePath.split("src/main/java/")[1].replace("/", ".").replace(".java", ".");
 
                         // 2. Parse the file to find Method Boundaries
@@ -84,25 +84,27 @@ public class SonarMetricsExtractor implements MetricsExtractor {
      */
     private void mapIssuesToMethods(String fullyQualifiedMethodNamePrefix, MethodDeclaration method, List<SonarAnalysisResult> fileIssues, List<MeasuredMethod> results) {
         if (method.getBegin().isPresent() && method.getEnd().isPresent()) {
-            int startLine = method.getBegin().get().line;
-            int endLine = method.getEnd().get().line;
+            // Only analyzes class methods, excluding interfaces
+            if (method.getBody().isPresent()) {
+                int startLine = method.getBegin().get().line;
+                int endLine = method.getEnd().get().line;
 
-            MeasuredMethod mm = new MeasuredMethod();
-            mm.setExtractedFrom(MetricsExtractorType.SONAR);
-            mm.setBuggy(false); // Assuming non-buggy methods by default
-            mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedMethodNamePrefix + method.getNameAsString(), startLine));
+                MeasuredMethod mm = new MeasuredMethod();
+                mm.setExtractedFrom(MetricsExtractorType.SONAR);
+                mm.setBuggy(false); // Assuming non-buggy methods by default
+                mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedMethodNamePrefix + method.getNameAsString(), startLine));
 
-            // Count smells strictly within this method's body
-            for (SonarAnalysisResult issue : fileIssues)
-                if (issue.getLine() >= startLine && issue.getLine() <= endLine) {
-                    if (issue.getType().equals("CODE_SMELL"))
-                        incrementSmellCount(mm, issue.getSeverity());
-                    if (issue.getType().equals("BUG")) {
-                        mm.incrementDefectCount();
-                        mm.setBuggy(true); // Sets buggy=true if any defect is found
+                // Count smells strictly within this method's body
+                for (SonarAnalysisResult issue : fileIssues)
+                    if (issue.getLine() >= startLine && issue.getLine() <= endLine) {
+                        if (issue.getType().equals("CODE_SMELL")) incrementSmellCount(mm, issue.getSeverity());
+                        if (issue.getType().equals("BUG")) {
+                            mm.incrementDefectCount();
+                            mm.setBuggy(true); // Sets buggy=true if any defect is found
+                        }
                     }
-                }
-            results.add(mm);
+                results.add(mm);
+            }
         }
     }
 
@@ -119,7 +121,8 @@ public class SonarMetricsExtractor implements MetricsExtractor {
         // Severities: BLOCKER, CRITICAL, MAJOR, MINOR, INFO
         switch (severity.toUpperCase()) {
             case "BLOCKER" -> mm.incrementBlockerSmellsCount();
-            case "CRITICAL" -> mm.incrementCriticalSmellsCount(); // Mapping Critical -> Major if you lack a Critical field
+            case "CRITICAL" ->
+                    mm.incrementCriticalSmellsCount(); // Mapping Critical -> Major if you lack a Critical field
             case "MAJOR" -> mm.incrementMajorSmellsCount();
             case "MINOR" -> mm.incrementMinorSmellsCount();
             case "INFO" -> mm.incrementInfoSmellsCount();

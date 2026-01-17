@@ -51,7 +51,7 @@ public class VCSMetricsExtractor implements MetricsExtractor {
 
             // 1. Walk all Java non-test files in the current checkout
             try (Stream<Path> paths = Files.walk(Paths.get(repoPath))) {
-                paths.filter(p -> p.toString().endsWith(".java") && !p.toString().toLowerCase().contains("test")).forEach(path -> {
+                paths.filter(p -> p.toString().endsWith(".java") && !p.toString().toLowerCase().contains("test") && !p.toString().contains("/target/")).forEach(path -> {
                     try {
                         // 2. Parse the file to find Methods and their line numbers
                         CompilationUnit cu = StaticJavaParser.parse(path);
@@ -61,22 +61,25 @@ public class VCSMetricsExtractor implements MetricsExtractor {
 
                             cu.findAll(MethodDeclaration.class).forEach(method -> {
                                 if (method.getBegin().isPresent() && method.getEnd().isPresent()) {
-                                    int startLine = method.getBegin().get().line;
-                                    int endLine = method.getEnd().get().line;
+                                    // Only analyzes class methods, excluding interfaces
+                                    if (method.getBody().isPresent()) {
+                                        int startLine = method.getBegin().get().line;
+                                        int endLine = method.getEnd().get().line;
 
-                                    MeasuredMethod mm = new MeasuredMethod();
-                                    mm.setExtractedFrom(MetricsExtractorType.VCS);
-                                    // Ensure this naming matches your CK naming for the merge to work
-                                    mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedNamePrefix + method.getNameAsString(), startLine));
+                                        MeasuredMethod mm = new MeasuredMethod();
+                                        mm.setExtractedFrom(MetricsExtractorType.VCS);
+                                        // Ensure this naming matches your CK naming for the merge to work
+                                        mm.setMethodName(MethodNameGenerator.generateMethodName(fullyQualifiedNamePrefix + method.getNameAsString(), startLine));
 
-                                    // 3. Calculate Developer Count (Lifetime - via Blame)
-                                    mm.setDeveloperCount(calculateDeveloperCount(git, relativePath, startLine, endLine));
+                                        // 3. Calculate Developer Count (Lifetime - via Blame)
+                                        mm.setDeveloperCount(calculateDeveloperCount(git, relativePath, startLine, endLine));
 
-                                    // 4. Calculate Churn (Process - via Diff vs. Previous Commit)
-                                    if (previousCommitId != null) {
-                                        mm.setChurn(calculateChurn(repository, relativePath, startLine, endLine));
+                                        // 4. Calculate Churn (Process - via Diff vs. Previous Commit)
+                                        if (previousCommitId != null) {
+                                            mm.setChurn(calculateChurn(repository, relativePath, startLine, endLine));
+                                        }
+                                        results.add(mm);
                                     }
-                                    results.add(mm);
                                 }
                             });
                         }
@@ -105,6 +108,7 @@ public class VCSMetricsExtractor implements MetricsExtractor {
      */
     private int calculateDeveloperCount(Git git, String path, int startLine, int endLine) {
         try {
+            log.debug("Calculating developer count for file {} (rows {}-{})", path, startLine, endLine);
             BlameCommand blame = git.blame().setFilePath(path);
             BlameResult result = blame.call();
             if (result == null) return 0;
@@ -134,6 +138,7 @@ public class VCSMetricsExtractor implements MetricsExtractor {
      * @return the churn value, which is the sum of lines added and deleted within the specified section
      */
     private int calculateChurn(Repository repo, String path, int startLine, int endLine) {
+        log.debug("Calculating churn for file {} (rows {}-{})", path, startLine, endLine);
         if (previousCommitId == null) return 0;
         try {
             ObjectId oldHead = repo.resolve(previousCommitId + "^{tree}");

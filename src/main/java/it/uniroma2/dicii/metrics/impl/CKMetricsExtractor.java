@@ -49,8 +49,10 @@ public class CKMetricsExtractor implements MetricsExtractor {
         ck.calculate(repoPath, new CKNotifier() {
             @Override
             public void notify(CKClassResult classResult) {
+                // Skip interfaces and /target directory
+                if (classResult.getType().equals("interface") || classResult.getFile().contains("/target/")) return;
                 for (CKMethodResult methodResult : classResult.getMethods()) {
-                    methodResults.put(MethodNameGenerator.generateMethodName(methodResult.getQualifiedMethodName(), methodResult.getStartLine()), methodResult);
+                    methodResults.put(MethodNameGenerator.generateMethodName(methodResult.getQualifiedMethodName().split("/")[0], methodResult.getStartLine()), methodResult);
                 }
             }
 
